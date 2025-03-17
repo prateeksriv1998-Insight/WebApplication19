@@ -15,10 +15,10 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v3
 
-    - name: Set up .NET Core
+    - name: Set up .NET 8.0
       uses: actions/setup-dotnet@v3
       with:
-        dotnet-version: '7.0'  # Change to match your .NET version
+        dotnet-version: '8.0.x'  # Install .NET 8.0 SDK
 
     - name: Restore dependencies
       run: dotnet restore
@@ -42,3 +42,16 @@ jobs:
         ACR_REPO=${{ secrets.ACR_NAME }}.azurecr.io/aspnetcoreapp
         docker build -t $ACR_REPO:${IMAGE_TAG} .
         docker push $ACR_REPO:${IMAGE_TAG}
+
+  deploy:
+    name: Deploy to Azure App Service
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+    - name: Deploy to Azure App Service
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
+        slot-name: "production"
+        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+        images: ${{ secrets.ACR_NAME }}.azurecr.io/aspnetcoreapp:${{ github.sha }}
