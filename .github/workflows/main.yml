@@ -1,0 +1,44 @@
+name: Build and Deploy ASP.NET Core to ACR and Azure App Service
+
+on:
+  push:
+    branches: [ "master" ]
+
+permissions:
+  contents: read  # Allows reading repository contents
+
+jobs:
+  build-and-push:
+    name: Build & Push to ACR
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up .NET Core
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '7.0'  # Change to match your .NET version
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build the application
+      run: dotnet build --configuration Release --no-restore
+
+    - name: Publish the application
+      run: dotnet publish -c Release -o ./publish
+
+    - name: Login to Azure Container Registry
+      run: |
+        docker login ${{ secrets.ACR_NAME }}.azurecr.io \
+          -u ${{ secrets.ACR_USERNAME }} \
+          -p ${{ secrets.ACR_PASSWORD }}
+
+    - name: Build and push Docker image to ACR
+      env:
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        ACR_REPO=${{ secrets.ACR_NAME }}.azurecr.io/aspnetcoreapp
+        docker build -t $ACR_REPO:${IMAGE_TAG} .
+        docker push $ACR_REPO:${IMAGE_TAG}
